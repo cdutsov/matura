@@ -1,0 +1,20 @@
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="Текст">
+
+        <CheckBoxPreference
+            android:key="big_font"
+            android:textColor="#FFFFFF"
+            android:title="Едър шрифт"
+            android:summary="Включване на големи букви"
+            android:defaultValue="false"/>
+
+        <CheckBoxPreference
+            android:key="fullscreen"
+            android:textColor="#FFFFFF"
+            android:title="Цял екран"
+            android:summary="Скриване на лентата с известия"
+            android:defaultValue="true"/>
+    </PreferenceCategory>
+</PreferenceScreen>

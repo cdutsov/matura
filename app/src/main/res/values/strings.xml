@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Matura</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Шрифт</string>
+    <string name="title_activity_main">MainActivity</string>
+
+    <string name="title_section1">Герои</string>
+    <string name="title_section2">Анализи</string>
+    <string name="title_section3">Творба</string>
+    <string name="title_activity_content">Content</string>
+    <string name="title_activity_list_view">ListView</string>
+    <string name="title_activity_list">ListActivity</string>
+    <string name="main_name">Матура за Машини БЕЛ</string>
+
+
+</resources>
