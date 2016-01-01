@@ -4,6 +4,7 @@ import android.app.*;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
@@ -23,6 +24,7 @@ import java.util.List;
  * Created by chavdar on 12/8/15.
  */
 public class GridAuthors extends Activity{
+    private final String appPackageName = "com.company.millenium.iwannask";
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -35,9 +37,17 @@ public class GridAuthors extends Activity{
         gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
                 // this 'mActivity' parameter is Activity object, you can send the current activity.
-                Intent i = new Intent(GridAuthors.this, ListActivity.class);
-                i.putExtra("item_clicked", String.valueOf(position));
-                GridAuthors.this.startActivity(i);
+                if (String.valueOf(position).contentEquals("15")) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + appPackageName)));
+                    } catch (android.content.ActivityNotFoundException anfe) {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + appPackageName)));
+                    }
+                } else {
+                    Intent i = new Intent(GridAuthors.this, ListActivity.class);
+                    i.putExtra("item_clicked", String.valueOf(position));
+                    GridAuthors.this.startActivity(i);
+                }
             }
         });
     }
@@ -66,8 +76,7 @@ public class GridAuthors extends Activity{
             items.add(new Item("Никола Вапцаров", R.drawable.vapcarov));
             items.add(new Item("Димитър Талев", R.drawable.talev));
             items.add(new Item("Димитър Димов", R.drawable.dimov));
-
-
+            items.add(new Item("IWannAsk", R.drawable.iwannask512_sepia));
         }
 
 

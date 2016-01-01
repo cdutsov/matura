@@ -1,18 +1,30 @@
 package com.dutsov.chavdar.matura;
 
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.provider.Settings;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.app.NavUtils;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.ViewPager;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
@@ -23,6 +35,14 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.webkit.CookieSyncManager;
+import android.webkit.GeolocationPermissions;
+import android.webkit.SslErrorHandler;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -31,7 +51,7 @@ import java.util.Locale;
 
 import static android.support.v4.app.ActivityCompat.startActivity;
 
-public class Content extends AppCompatActivity implements ActionBar.TabListener {
+public class Content extends AppCompatActivity implements ActionBar.TabListener{
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -173,6 +193,16 @@ public class Content extends AppCompatActivity implements ActionBar.TabListener 
         hm.put("Борбата е безмилостно жестока","borbata");
     }
 
+    public static WebView myWebView;
+    private static ValueCallback<Uri> mUploadMessage;
+    private final static int FILECHOOSER_RESULTCODE=1;
+    private static BroadcastReceiver mRegistrationBroadcastReceiver;
+    private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
+    private static final String TAG = "Content";
+    private static String URL;
+    private static SwipeRefreshLayout mSwipeRefreshLayout;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -279,6 +309,14 @@ public class Content extends AppCompatActivity implements ActionBar.TabListener 
     public void onTabReselected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        if(intent.hasExtra("url")) {
+            String url = intent.getStringExtra("url");
+            myWebView.loadUrl(Constants.SERVER_URL + url);
+        }
+    }
+
     /**
      * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
      * one of the sections/tabs/pages.
@@ -329,7 +367,7 @@ public class Content extends AppCompatActivity implements ActionBar.TabListener 
     /**
      * A placeholder fragment containing a simple view.
      */
-    public static class HeroesFragment extends Fragment {
+    public static class HeroesFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
         /**
          * The fragment argument representing the section number for this
          * fragment.
@@ -352,13 +390,160 @@ public class Content extends AppCompatActivity implements ActionBar.TabListener 
         }
 
         @Override
+        public void onPause() {
+            LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(mRegistrationBroadcastReceiver);
+            super.onPause();
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();;
+            LocalBroadcastManager.getInstance(getActivity()).registerReceiver(mRegistrationBroadcastReceiver,
+                    new IntentFilter(QuickstartPreferences.REGISTRATION_COMPLETE));
+            if (DetectConnection.checkInternetConnection(getActivity())) {
+                myWebView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+                myWebView.reload();
+            }
+        }
+
+
+        @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.heroes_content, container, false);
-            //FillData data = new FillData(value, rootView);
-            FillData data = new FillData();
-            data.FillHeroes(fileString, rootView, this.getContext());
+
+            Intent mIntent = getActivity().getIntent();
+            URL = Constants.SERVER_URL;
+            if(mIntent.hasExtra("url")) {
+                myWebView = null;
+                startActivity(getActivity().getIntent());
+                String url = mIntent.getStringExtra("url");
+                URL = Constants.SERVER_URL + url;
+            }
+
+            CookieSyncManager.createInstance(getActivity());
+            CookieSyncManager.getInstance().startSync();
+            myWebView = (WebView) rootView.findViewById(R.id.webview);
+//            myWebView.setWebViewClient(new WebViewClient());
+//            myWebView.setWebChromeClient(new WebChromeClient() {
+//                public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+//                    callback.invoke(origin, true, false);
+//                }
+//            });
+//            myWebView.getSettings().setGeolocationDatabasePath(getActivity().getFilesDir().getPath());
+            WebSettings webSettings = myWebView.getSettings();
+            webSettings.setUseWideViewPort(false);
+            if (!DetectConnection.checkInternetConnection(getActivity())) {
+                webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+                showNoConnectionDialog(getActivity());
+            }
+            else {
+                webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+            }
+            //myWebView.setWebViewClient(new CustomWebViewClient());
+            webSettings.setJavaScriptEnabled(true);
+            webSettings.setLoadWithOverviewMode(true);
+            webSettings.setUseWideViewPort(true);
+            myWebView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+
+            //location test
+            webSettings.setAppCacheEnabled(true);
+            webSettings.setDatabaseEnabled(true);
+            webSettings.setDomStorageEnabled(true);
+
+            myWebView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    CookieSyncManager.getInstance().sync();
+                }
+
+                @Override
+                public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                    handler.proceed(); // Ignore SSL certificate errors
+                }
+
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                    if (Uri.parse(url).getHost().equals(Constants.HOST) || Uri.parse(url).getHost().equals(Constants.WWWHOST)) {
+                        // This is my web site, so do not override; let my WebView load
+                        // the page
+                        return false;
+                    }
+                    // Otherwise, the link is not for a page on my site, so launch
+                    // another Activity that handles URLs
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(intent);
+                    return true;
+                }
+            });
+            myWebView.setWebChromeClient(new WebChromeClient() {
+                public void onProgressChanged(WebView view, int progress) {
+                    getActivity().setProgress(progress * 100);
+                }
+
+                //The undocumented magic method override
+                //Eclipse will swear at you if you try to put @Override here
+                // For Android 3.0+
+                public void openFileChooser(ValueCallback<Uri> uploadMsg) {
+
+                    mUploadMessage = uploadMsg;
+                    Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("image/*");
+//                    Content.this.startActivityForResult(Intent.createChooser(i, "File Chooser"), FILECHOOSER_RESULTCODE);
+
+                }
+
+                // For Android 3.0+
+                public void openFileChooser(ValueCallback uploadMsg, String acceptType) {
+                    mUploadMessage = uploadMsg;
+                    Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("*/*");
+//                    MainActivity.this.startActivityForResult(
+//                            Intent.createChooser(i, "File Browser"),
+//                            FILECHOOSER_RESULTCODE);
+                }
+
+                //For Android 4.1
+                public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture) {
+                    mUploadMessage = uploadMsg;
+                    Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("image/*");
+//                    activity.this.startActivityForResult(Intent.createChooser(i, "File Chooser"), Content.FILECHOOSER_RESULTCODE);
+                }
+
+            });
+//            rootView.setContentView(myWebView);
+            myWebView.loadUrl(URL);
+            mRegistrationBroadcastReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+//                mRegistrationProgressBar.setVisibility(ProgressBar.GONE);
+                    SharedPreferences sharedPreferences =
+                            PreferenceManager.getDefaultSharedPreferences(context);
+                    boolean sentToken = sharedPreferences
+                            .getBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, false);
+                }
+            };
+
+            //Pull-to-refresh
+            mSwipeRefreshLayout = (SwipeRefreshLayout) rootView.findViewById(R.id.container);
+            mSwipeRefreshLayout.setOnRefreshListener(this);
             return rootView;
+        }
+
+        @Override
+        public void onRefresh() {
+            myWebView.reload();
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mSwipeRefreshLayout.setRefreshing(false);
+                }
+            }, 2000);
         }
     }
 
@@ -469,4 +654,33 @@ public class Content extends AppCompatActivity implements ActionBar.TabListener 
             }
         }
     }
+
+    public static void showNoConnectionDialog(Context ctx1) {
+        final Context ctx = ctx1;
+        AlertDialog.Builder builder = new AlertDialog.Builder(ctx, R.style.AlertDialog);
+        builder.setCancelable(true);
+        builder.setMessage(R.string.no_connection);
+        builder.setTitle(R.string.no_connection_title);
+        builder.setPositiveButton(R.string.settings_button_text, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                ctx.startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS));
+            }
+        });
+
+        builder.setNegativeButton(R.string.cancel_button_text, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                return;
+            }
+        });
+
+        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            public void onCancel(DialogInterface dialog) {
+                return;
+            }
+        });
+
+        builder.show();
+    }
+
+
 }

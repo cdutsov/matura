@@ -35,10 +35,6 @@ public class FillData {
             result = "Очаквайте следваща версия на приложението в което ще има доплънигелна информация\n" +
                     "за сега едно голямо нищо!";
         }
-        TextView mTextView = (TextView) rootView.findViewById(R.id.heroes);
-        mTextView.setMovementMethod(new ScrollingMovementMethod());
-        mTextView.setText(result);
-
     }
 
    public void FillExamps(String value, View rootView, Context context) {

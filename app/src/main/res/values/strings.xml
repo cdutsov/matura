@@ -4,13 +4,17 @@
     <string name="action_settings">Шрифт</string>
     <string name="title_activity_main">MainActivity</string>
 
-    <string name="title_section1">Герои</string>
+    <string name="title_section1">Въпроси</string>
     <string name="title_section2">Анализи</string>
     <string name="title_section3">Творба</string>
     <string name="title_activity_content">Content</string>
     <string name="title_activity_list_view">ListView</string>
     <string name="title_activity_list">ListActivity</string>
     <string name="main_name">Матура за Машини БЕЛ</string>
+    <string name="no_connection">Включете WiFi или мобилни данни</string>
+    <string name="no_connection_title">Връзка с интернет</string>
+    <string name="settings_button_text">Настройки</string>
+    <string name="cancel_button_text">Откажиye</string>
 
 
 </resources>
